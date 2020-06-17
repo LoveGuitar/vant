@@ -1,27 +1,47 @@
+// Utils
 import { createNamespace, isDef, addUnit } from '../utils';
-import { scrollLeftTo } from './utils';
+import { scrollLeftTo, scrollTopTo } from './utils';
 import { route } from '../utils/router';
 import { isHidden } from '../utils/dom/style';
+import { on, off } from '../utils/dom/event';
+import { BORDER_TOP_BOTTOM } from '../utils/constant';
+import {
+  getScroller,
+  getVisibleTop,
+  getElementTop,
+  getVisibleHeight,
+  setRootScrollTop,
+} from '../utils/dom/scroll';
+
+// Mixins
 import { ParentMixin } from '../mixins/relation';
 import { BindEventMixin } from '../mixins/bind-event';
-import { BORDER_TOP_BOTTOM } from '../utils/constant';
-import { setRootScrollTop, getElementTop } from '../utils/dom/scroll';
+
+// Components
 import Title from './Title';
-import Content from './Content';
 import Sticky from '../sticky';
+import Content from './Content';
 
 const [createComponent, bem] = createNamespace('tabs');
 
 export default createComponent({
   mixins: [
     ParentMixin('vanTabs'),
-    BindEventMixin(function(bind) {
-      bind(window, 'resize', this.setLine, true);
-    })
+    BindEventMixin(function (bind) {
+      if (!this.scroller) {
+        this.scroller = getScroller(this.$el);
+      }
+
+      bind(window, 'resize', this.resize, true);
+
+      if (this.scrollspy) {
+        bind(this.scroller, 'scroll', this.onScroll, true);
+      }
+    }),
   ],
 
   model: {
-    prop: 'active'
+    prop: 'active',
   },
 
   props: {
@@ -29,6 +49,7 @@ export default createComponent({
     sticky: Boolean,
     animated: Boolean,
     swipeable: Boolean,
+    scrollspy: Boolean,
     background: String,
     lineWidth: [Number, String],
     lineHeight: [Number, String],
@@ -36,36 +57,36 @@ export default createComponent({
     titleInactiveColor: String,
     type: {
       type: String,
-      default: 'line'
+      default: 'line',
     },
     active: {
       type: [Number, String],
-      default: 0
+      default: 0,
     },
     border: {
       type: Boolean,
-      default: true
+      default: true,
     },
     ellipsis: {
       type: Boolean,
-      default: true
+      default: true,
     },
     duration: {
-      type: Number,
-      default: 0.3
+      type: [Number, String],
+      default: 0.3,
     },
     offsetTop: {
-      type: Number,
-      default: 0
+      type: [Number, String],
+      default: 0,
     },
     lazyRender: {
       type: Boolean,
-      default: true
+      default: true,
     },
     swipeThreshold: {
-      type: Number,
-      default: 4
-    }
+      type: [Number, String],
+      default: 4,
+    },
   },
 
   data() {
@@ -73,8 +94,8 @@ export default createComponent({
       position: '',
       currentIndex: null,
       lineStyle: {
-        backgroundColor: this.color
-      }
+        backgroundColor: this.color,
+      },
     };
   },
 
@@ -87,7 +108,7 @@ export default createComponent({
     navStyle() {
       return {
         borderColor: this.color,
-        background: this.background
+        background: this.background,
       };
     },
 
@@ -97,7 +118,14 @@ export default createComponent({
       if (activeTab) {
         return activeTab.computedName;
       }
-    }
+    },
+
+    scrollOffset() {
+      if (this.sticky) {
+        return +this.offsetTop + this.tabHeight;
+      }
+      return 0;
+    },
   },
 
   watch: {
@@ -123,25 +151,39 @@ export default createComponent({
       this.setLine();
 
       // scroll to correct position
-      if (this.stickyFixed) {
+      if (this.stickyFixed && !this.scrollspy) {
         setRootScrollTop(Math.ceil(getElementTop(this.$el) - this.offsetTop));
       }
-    }
+    },
+
+    scrollspy(val) {
+      if (val) {
+        on(this.scroller, 'scroll', this.onScroll, true);
+      } else {
+        off(this.scroller, 'scroll', this.onScroll);
+      }
+    },
   },
 
   mounted() {
-    this.onShow();
+    this.init();
   },
 
   activated() {
-    this.onShow();
+    this.init();
     this.setLine();
   },
 
   methods: {
-    onShow() {
+    // @exposed-api
+    resize() {
+      this.setLine();
+    },
+
+    init() {
       this.$nextTick(() => {
         this.inited = true;
+        this.tabHeight = getVisibleHeight(this.$refs.wrap);
         this.scrollIntoView(true);
       });
     },
@@ -170,7 +212,7 @@ export default createComponent({
         const lineStyle = {
           width: addUnit(width),
           backgroundColor: this.color,
-          transform: `translateX(${left}px) translateX(-50%)`
+          transform: `translateX(${left}px) translateX(-50%)`,
         };
 
         if (shouldAnimate) {
@@ -189,7 +231,7 @@ export default createComponent({
 
     // correct the index of active tab
     setCurrentIndexByName(name) {
-      const matched = this.children.filter(tab => tab.computedName === name);
+      const matched = this.children.filter((tab) => tab.computedName === name);
       const defaultIndex = (this.children[0] || {}).index || 0;
       this.setCurrentIndex(matched.length ? matched[0].index : defaultIndex);
     },
@@ -203,7 +245,11 @@ export default createComponent({
         this.$emit('input', this.currentName);
 
         if (shouldEmitChange) {
-          this.$emit('change', this.currentName, this.children[currentIndex].title);
+          this.$emit(
+            'change',
+            this.currentName,
+            this.children[currentIndex].title
+          );
         }
       }
     },
@@ -227,6 +273,7 @@ export default createComponent({
         this.$emit('disabled', computedName, title);
       } else {
         this.setCurrentIndex(index);
+        this.scrollToCurrentContent();
         this.$emit('click', computedName, title);
       }
     },
@@ -243,20 +290,50 @@ export default createComponent({
       const title = titles[this.currentIndex].$el;
       const to = title.offsetLeft - (nav.offsetWidth - title.offsetWidth) / 2;
 
-      scrollLeftTo(nav, to, immediate ? 0 : this.duration);
+      scrollLeftTo(nav, to, immediate ? 0 : +this.duration);
     },
 
-    // render title slot of child tab
-    renderTitle(el, index) {
-      this.$nextTick(() => {
-        this.$refs.titles[index].renderTitle(el);
-      });
-    },
-
-    onScroll(params) {
+    onSticktScroll(params) {
       this.stickyFixed = params.isFixed;
       this.$emit('scroll', params);
-    }
+    },
+
+    scrollToCurrentContent() {
+      if (this.scrollspy) {
+        const target = this.children[this.currentIndex];
+        const el = target?.$el;
+
+        if (el) {
+          const to = getElementTop(el, this.scroller) - this.scrollOffset;
+
+          this.lockScroll = true;
+          scrollTopTo(this.scroller, to, +this.duration, () => {
+            this.lockScroll = false;
+          });
+        }
+      }
+    },
+
+    onScroll() {
+      if (this.scrollspy && !this.lockScroll) {
+        const index = this.getCurrentIndexOnScroll();
+        this.setCurrentIndex(index);
+      }
+    },
+
+    getCurrentIndexOnScroll() {
+      const { children } = this;
+
+      for (let index = 0; index < children.length; index++) {
+        const top = getVisibleTop(children[index].$el);
+
+        if (top > this.scrollOffset) {
+          return index === 0 ? 0 : index - 1;
+        }
+      }
+
+      return children.length - 1;
+    },
   },
 
   render() {
@@ -267,8 +344,11 @@ export default createComponent({
         ref="titles"
         refInFor
         type={type}
+        dot={item.dot}
+        info={isDef(item.badge) ? item.badge : item.info}
         title={item.title}
         color={this.color}
+        style={item.titleStyle}
         isActive={index === this.currentIndex}
         ellipsis={ellipsis}
         disabled={item.disabled}
@@ -276,6 +356,9 @@ export default createComponent({
         activeColor={this.titleActiveColor}
         inactiveColor={this.titleInactiveColor}
         swipeThreshold={this.swipeThreshold}
+        scopedSlots={{
+          default: () => item.slots('title'),
+        }}
         onClick={() => {
           this.onClick(index);
           route(item.$router, item);
@@ -288,13 +371,20 @@ export default createComponent({
         ref="wrap"
         class={[
           bem('wrap', { scrollable }),
-          { [BORDER_TOP_BOTTOM]: type === 'line' && this.border }
+          { [BORDER_TOP_BOTTOM]: type === 'line' && this.border },
         ]}
       >
-        <div ref="nav" role="tablist" class={bem('nav', [type])} style={this.navStyle}>
+        <div
+          ref="nav"
+          role="tablist"
+          class={bem('nav', [type])}
+          style={this.navStyle}
+        >
           {this.slots('nav-left')}
           {Nav}
-          {type === 'line' && <div class={bem('line')} style={this.lineStyle} />}
+          {type === 'line' && (
+            <div class={bem('line')} style={this.lineStyle} />
+          )}
           {this.slots('nav-right')}
         </div>
       </div>
@@ -306,7 +396,7 @@ export default createComponent({
           <Sticky
             container={this.$el}
             offsetTop={this.offsetTop}
-            onScroll={this.onScroll}
+            onScroll={this.onSticktScroll}
           >
             {Wrap}
           </Sticky>
@@ -325,5 +415,5 @@ export default createComponent({
         </Content>
       </div>
     );
-  }
+  },
 });

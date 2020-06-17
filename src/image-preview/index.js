@@ -5,32 +5,40 @@ import { isServer } from '../utils';
 let instance;
 
 const defaultConfig = {
-  images: [],
   loop: true,
-  swipeDuration: 500,
+  images: [],
   value: true,
   minZoom: 1 / 3,
   maxZoom: 3,
   className: '',
   onClose: null,
   onChange: null,
-  lazyLoad: false,
   showIndex: true,
+  closeable: false,
+  closeIcon: 'clear',
   asyncClose: false,
   startPosition: 0,
+  swipeDuration: 500,
   showIndicators: false,
-  closeOnPopstate: false
+  closeOnPopstate: false,
+  closeIconPosition: 'top-right',
 };
 
 const initInstance = () => {
   instance = new (Vue.extend(VueImagePreview))({
-    el: document.createElement('div')
+    el: document.createElement('div'),
   });
   document.body.appendChild(instance.$el);
 
-  instance.$on('change', index => {
+  instance.$on('change', (index) => {
     if (instance.onChange) {
       instance.onChange(index);
+    }
+  });
+
+  instance.$on('scale', (data) => {
+    if (instance.onScale) {
+      instance.onScale(data);
     }
   });
 };
@@ -49,16 +57,23 @@ const ImagePreview = (images, startPosition = 0) => {
 
   Object.assign(instance, defaultConfig, options);
 
-  instance.$once('input', show => {
+  instance.$once('input', (show) => {
     instance.value = show;
   });
 
+  instance.$once('closed', () => {
+    instance.images = [];
+  });
+
   if (options.onClose) {
+    instance.$off('close');
     instance.$once('close', options.onClose);
   }
 
   return instance;
 };
+
+ImagePreview.Component = VueImagePreview;
 
 ImagePreview.install = () => {
   Vue.use(VueImagePreview);

@@ -9,25 +9,25 @@ export const sharedProps = {
   filter: Function,
   showToolbar: {
     type: Boolean,
-    default: true
+    default: true,
   },
   formatter: {
     type: Function,
-    default: (type, value) => value
-  }
+    default: (type, value) => value,
+  },
 };
 
 export const TimePickerMixin = {
   data() {
     return {
-      innerValue: this.formatValue(this.value)
+      innerValue: this.formatValue(this.value),
     };
   },
 
   computed: {
     originColumns() {
       return this.ranges.map(({ type, range: rangeArr }) => {
-        let values = times(rangeArr[1] - rangeArr[0] + 1, index => {
+        let values = times(rangeArr[1] - rangeArr[0] + 1, (index) => {
           const value = padZero(rangeArr[0] + index);
           return value;
         });
@@ -38,16 +38,18 @@ export const TimePickerMixin = {
 
         return {
           type,
-          values
+          values,
         };
       });
     },
 
     columns() {
-      return this.originColumns.map(column => ({
-        values: column.values.map(value => this.formatter(column.type, value))
+      return this.originColumns.map((column) => ({
+        values: column.values.map((value) =>
+          this.formatter(column.type, value)
+        ),
       }));
-    }
+    },
   },
 
   watch: {
@@ -55,26 +57,35 @@ export const TimePickerMixin = {
 
     innerValue(val) {
       this.$emit('input', val);
-    }
+    },
   },
 
   mounted() {
     this.updateColumnValue();
+
+    this.$nextTick(() => {
+      this.updateInnerValue();
+    });
   },
 
   methods: {
+    // @exposed-api
+    getPicker() {
+      return this.$refs.picker;
+    },
+
     onConfirm() {
       this.$emit('confirm', this.innerValue);
     },
 
     onCancel() {
       this.$emit('cancel');
-    }
+    },
   },
 
   render() {
     const props = {};
-    Object.keys(pickerProps).forEach(key => {
+    Object.keys(pickerProps).forEach((key) => {
       props[key] = this[key];
     });
 
@@ -88,5 +99,5 @@ export const TimePickerMixin = {
         {...{ props }}
       />
     );
-  }
+  },
 };

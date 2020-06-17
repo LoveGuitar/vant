@@ -1,13 +1,12 @@
 import { createNamespace, addUnit } from '../utils';
 import { BORDER_TOP, BORDER_LEFT } from '../utils/constant';
 import { PopupMixin } from '../mixins/popup';
-import { CloseOnPopstateMixin } from '../mixins/close-on-popstate';
 import Button from '../button';
 
 const [createComponent, bem, t] = createNamespace('dialog');
 
 export default createComponent({
-  mixins: [PopupMixin, CloseOnPopstateMixin],
+  mixins: [PopupMixin()],
 
   props: {
     title: String,
@@ -24,28 +23,28 @@ export default createComponent({
     showCancelButton: Boolean,
     transition: {
       type: String,
-      default: 'van-dialog-bounce'
+      default: 'van-dialog-bounce',
     },
     showConfirmButton: {
       type: Boolean,
-      default: true
+      default: true,
     },
     overlay: {
       type: Boolean,
-      default: true
+      default: true,
     },
     closeOnClickOverlay: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
 
   data() {
     return {
       loading: {
         confirm: false,
-        cancel: false
-      }
+        cancel: false,
+      },
     };
   },
 
@@ -57,9 +56,14 @@ export default createComponent({
     handleAction(action) {
       this.$emit(action);
 
+      // show not trigger close event when hidden
+      if (!this.value) {
+        return;
+      }
+
       if (this.beforeClose) {
         this.loading[action] = true;
-        this.beforeClose(action, state => {
+        this.beforeClose(action, (state) => {
           if (state !== false && this.loading[action]) {
             this.onClose(action);
           }
@@ -86,7 +90,40 @@ export default createComponent({
 
     onClosed() {
       this.$emit('closed');
-    }
+    },
+
+    genButtons() {
+      const multiple = this.showCancelButton && this.showConfirmButton;
+
+      return (
+        <div class={[BORDER_TOP, bem('footer', { buttons: multiple })]}>
+          {this.showCancelButton && (
+            <Button
+              size="large"
+              class={bem('cancel')}
+              loading={this.loading.cancel}
+              text={this.cancelButtonText || t('cancel')}
+              style={{ color: this.cancelButtonColor }}
+              onClick={() => {
+                this.handleAction('cancel');
+              }}
+            />
+          )}
+          {this.showConfirmButton && (
+            <Button
+              size="large"
+              class={[bem('confirm'), { [BORDER_LEFT]: multiple }]}
+              loading={this.loading.confirm}
+              text={this.confirmButtonText || t('confirm')}
+              style={{ color: this.confirmButtonColor }}
+              onClick={() => {
+                this.handleAction('confirm');
+              }}
+            />
+          )}
+        </div>
+      );
+    },
   },
 
   render() {
@@ -99,7 +136,9 @@ export default createComponent({
     const title = this.slots('title') || this.title;
 
     const Title = title && (
-      <div class={bem('header', { isolated: !message && !messageSlot })}>{title}</div>
+      <div class={bem('header', { isolated: !message && !messageSlot })}>
+        {title}
+      </div>
     );
 
     const Content = (messageSlot || message) && (
@@ -107,37 +146,10 @@ export default createComponent({
         {messageSlot || (
           <div
             domPropsInnerHTML={message}
-            class={bem('message', { 'has-title': title, [messageAlign]: messageAlign })}
-          />
-        )}
-      </div>
-    );
-
-    const hasButtons = this.showCancelButton && this.showConfirmButton;
-    const ButtonGroup = (
-      <div class={[BORDER_TOP, bem('footer', { buttons: hasButtons })]}>
-        {this.showCancelButton && (
-          <Button
-            size="large"
-            class={bem('cancel')}
-            loading={this.loading.cancel}
-            text={this.cancelButtonText || t('cancel')}
-            style={{ color: this.cancelButtonColor }}
-            onClick={() => {
-              this.handleAction('cancel');
-            }}
-          />
-        )}
-        {this.showConfirmButton && (
-          <Button
-            size="large"
-            class={[bem('confirm'), { [BORDER_LEFT]: hasButtons }]}
-            loading={this.loading.confirm}
-            text={this.confirmButtonText || t('confirm')}
-            style={{ color: this.confirmButtonColor }}
-            onClick={() => {
-              this.handleAction('confirm');
-            }}
+            class={bem('message', {
+              'has-title': title,
+              [messageAlign]: messageAlign,
+            })}
           />
         )}
       </div>
@@ -158,9 +170,9 @@ export default createComponent({
         >
           {Title}
           {Content}
-          {ButtonGroup}
+          {this.genButtons()}
         </div>
       </transition>
     );
-  }
+  },
 });

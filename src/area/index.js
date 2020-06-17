@@ -1,13 +1,28 @@
 import { createNamespace } from '../utils';
-import Picker from '../picker';
 import { pickerProps } from '../picker/shared';
+import Picker from '../picker';
 
 const [createComponent, bem] = createNamespace('area');
 
-const COLUMNSPLACEHOLDERCODE = '000000';
+const PLACEHOLDER_CODE = '000000';
 
 function isOverseaCode(code) {
   return code[0] === '9';
+}
+
+function pickSlots(instance, keys) {
+  const { $slots, $scopedSlots } = instance;
+  const scopedSlots = {};
+
+  keys.forEach((key) => {
+    if ($scopedSlots[key]) {
+      scopedSlots[key] = $scopedSlots[key];
+    } else if ($slots[key]) {
+      scopedSlots[key] = () => $slots[key];
+    }
+  });
+
+  return scopedSlots;
 }
 
 export default createComponent({
@@ -16,26 +31,26 @@ export default createComponent({
     value: String,
     areaList: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     columnsNum: {
       type: [Number, String],
-      default: 3
+      default: 3,
     },
     isOverseaCode: {
       type: Function,
-      default: isOverseaCode
+      default: isOverseaCode,
     },
     columnsPlaceholder: {
       type: Array,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
 
   data() {
     return {
       code: this.value,
-      columns: [{ values: [] }, { values: [] }, { values: [] }]
+      columns: [{ values: [] }, { values: [] }, { values: [] }],
     };
   },
 
@@ -56,31 +71,31 @@ export default createComponent({
       return this.columns.slice(0, +this.columnsNum);
     },
 
-    typeToColumnsPlaceholder() {
+    placeholderMap() {
       return {
         province: this.columnsPlaceholder[0] || '',
         city: this.columnsPlaceholder[1] || '',
         county: this.columnsPlaceholder[2] || '',
       };
-    }
+    },
   },
 
   watch: {
-    value() {
-      this.code = this.value;
+    value(val) {
+      this.code = val;
       this.setValues();
     },
 
     areaList: {
       deep: true,
-      handler: 'setValues'
+      handler: 'setValues',
     },
 
     columnsNum() {
       this.$nextTick(() => {
         this.setValues();
       });
-    }
+    },
   },
 
   mounted() {
@@ -96,9 +111,9 @@ export default createComponent({
       }
 
       const list = this[type];
-      result = Object.keys(list).map(listCode => ({
+      result = Object.keys(list).map((listCode) => ({
         code: listCode,
-        name: list[listCode]
+        name: list[listCode],
       }));
 
       if (code) {
@@ -107,15 +122,21 @@ export default createComponent({
           code = '9';
         }
 
-        result = result.filter(item => item.code.indexOf(code) === 0);
+        result = result.filter((item) => item.code.indexOf(code) === 0);
       }
 
-      if (this.typeToColumnsPlaceholder[type] && result.length) {
+      if (this.placeholderMap[type] && result.length) {
         // set columns placeholder
-        const codeFill = type === 'province' ? '' : type === 'city' ? COLUMNSPLACEHOLDERCODE.slice(2, 4) : COLUMNSPLACEHOLDERCODE.slice(4, 6);
+        let codeFill = '';
+        if (type === 'city') {
+          codeFill = PLACEHOLDER_CODE.slice(2, 4);
+        } else if (type === 'county') {
+          codeFill = PLACEHOLDER_CODE.slice(4, 6);
+        }
+
         result.unshift({
           code: `${code}${codeFill}`,
-          name: this.typeToColumnsPlaceholder[type]
+          name: this.placeholderMap[type],
         });
       }
 
@@ -150,10 +171,12 @@ export default createComponent({
         if (!value) return value;
 
         value = JSON.parse(JSON.stringify(value));
+
         if (!value.code || value.name === this.columnsPlaceholder[index]) {
           value.code = '';
           value.name = '';
         }
+
         return value;
       });
     },
@@ -161,9 +184,9 @@ export default createComponent({
     onChange(picker, values, index) {
       this.code = values[index].code;
       this.setValues();
-      let getValues = picker.getValues();
-      getValues = this.parseOutputValues(getValues);
-      this.$emit('change', picker, getValues, index);
+
+      const parsedValues = this.parseOutputValues(picker.getValues());
+      this.$emit('change', picker, parsedValues, index);
     },
 
     onConfirm(values, index) {
@@ -172,17 +195,29 @@ export default createComponent({
       this.$emit('confirm', values, index);
     },
 
+    getDefaultCode() {
+      if (this.columnsPlaceholder.length) {
+        return PLACEHOLDER_CODE;
+      }
+
+      const countyCodes = Object.keys(this.county);
+      if (countyCodes[0]) {
+        return countyCodes[0];
+      }
+
+      const cityCodes = Object.keys(this.city);
+      if (cityCodes[0]) {
+        return cityCodes[0];
+      }
+
+      return '';
+    },
+
     setValues() {
       let { code } = this;
 
       if (!code) {
-        if (this.columnsPlaceholder.length) {
-          code = COLUMNSPLACEHOLDERCODE;
-        } else if (Object.keys(this.county)[0]) {
-          code = Object.keys(this.county)[0];
-        } else {
-          code = '';
-        }
+        code = this.getDefaultCode();
       }
 
       const { picker } = this.$refs;
@@ -196,7 +231,11 @@ export default createComponent({
       picker.setColumnValues(0, province);
       picker.setColumnValues(1, city);
 
-      if (city.length && code.slice(2, 4) === '00' && !this.isOverseaCode(code)) {
+      if (
+        city.length &&
+        code.slice(2, 4) === '00' &&
+        !this.isOverseaCode(code)
+      ) {
         [{ code }] = city;
       }
 
@@ -204,13 +243,15 @@ export default createComponent({
       picker.setIndexes([
         this.getIndex('province', code),
         this.getIndex('city', code),
-        this.getIndex('county', code)
+        this.getIndex('county', code),
       ]);
     },
 
     getValues() {
       const { picker } = this.$refs;
-      let getValues = picker ? picker.getValues().filter(value => !!value) : [];
+      let getValues = picker
+        ? picker.getValues().filter((value) => !!value)
+        : [];
       getValues = this.parseOutputValues(getValues);
       return getValues;
     },
@@ -222,16 +263,19 @@ export default createComponent({
         country: '',
         province: '',
         city: '',
-        county: ''
+        county: '',
       };
 
       if (!values.length) {
         return area;
       }
 
-      const names = values.map(item => item.name);
-      const filterCodeValues = values.filter(value => !!value.code);
-      area.code = filterCodeValues.length ? filterCodeValues[filterCodeValues.length - 1].code : '';
+      const names = values.map((item) => item.name);
+      const validValues = values.filter((value) => !!value.code);
+
+      area.code = validValues.length
+        ? validValues[validValues.length - 1].code
+        : '';
 
       if (this.isOverseaCode(area.code)) {
         area.country = names[1] || '';
@@ -245,17 +289,18 @@ export default createComponent({
       return area;
     },
 
+    // @exposed-api
     reset(code) {
       this.code = code || '';
       this.setValues();
-    }
+    },
   },
 
   render() {
     const on = {
       ...this.$listeners,
       change: this.onChange,
-      confirm: this.onConfirm
+      confirm: this.onConfirm,
     };
 
     return (
@@ -268,11 +313,17 @@ export default createComponent({
         loading={this.loading}
         columns={this.displayColumns}
         itemHeight={this.itemHeight}
+        swipeDuration={this.swipeDuration}
         visibleItemCount={this.visibleItemCount}
         cancelButtonText={this.cancelButtonText}
         confirmButtonText={this.confirmButtonText}
+        scopedSlots={pickSlots(this, [
+          'title',
+          'columns-top',
+          'columns-bottom',
+        ])}
         {...{ on }}
       />
     );
-  }
+  },
 });

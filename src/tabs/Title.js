@@ -1,10 +1,13 @@
-import { createNamespace } from '../utils';
+import { createNamespace, isDef } from '../utils';
+import Info from '../info';
 
-const bem = createNamespace('tab')[1];
+const [createComponent, bem] = createNamespace('tab');
 
-export default {
+export default createComponent({
   props: {
+    dot: Boolean,
     type: String,
+    info: [Number, String],
     color: String,
     title: String,
     isActive: Boolean,
@@ -13,7 +16,7 @@ export default {
     scrollable: Boolean,
     activeColor: String,
     inactiveColor: String,
-    swipeThreshold: Number
+    swipeThreshold: [Number, String],
   },
 
   computed: {
@@ -45,7 +48,7 @@ export default {
       }
 
       return style;
-    }
+    },
   },
 
   methods: {
@@ -53,11 +56,24 @@ export default {
       this.$emit('click');
     },
 
-    renderTitle(el) {
-      const { title } = this.$refs;
-      title.innerHTML = '';
-      title.appendChild(el);
-    }
+    genText() {
+      const Text = (
+        <span class={bem('text', { ellipsis: this.ellipsis })}>
+          {this.slots() || this.title}
+        </span>
+      );
+
+      if (this.dot || (isDef(this.info) && this.info !== '')) {
+        return (
+          <span class={bem('text-wrapper')}>
+            {Text}
+            {<Info dot={this.dot} info={this.info} />}
+          </span>
+        );
+      }
+
+      return Text;
+    },
   },
 
   render() {
@@ -65,18 +81,18 @@ export default {
       <div
         role="tab"
         aria-selected={this.isActive}
-        class={bem({
-          active: this.isActive,
-          disabled: this.disabled,
-          complete: !this.ellipsis
-        })}
+        class={[
+          bem({
+            active: this.isActive,
+            disabled: this.disabled,
+            complete: !this.ellipsis,
+          }),
+        ]}
         style={this.style}
         onClick={this.onClick}
       >
-        <span ref="title" class={{ 'van-ellipsis': this.ellipsis }}>
-          {this.title}
-        </span>
+        {this.genText()}
       </div>
     );
-  }
-};
+  },
+});

@@ -1,38 +1,25 @@
-import Vue, { VNode } from 'vue';
+import Vue from 'vue';
+import { sortChildren } from '../utils/vnodes';
 
 type ChildrenMixinOptions = {
   indexKey?: any;
 };
 
-function flattenVNodes(vnodes: VNode[]) {
-  const result: VNode[] = [];
-
-  function traverse(vnodes: VNode[]) {
-    vnodes.forEach(vnode => {
-      result.push(vnode);
-
-      if (vnode.children) {
-        traverse(vnode.children);
-      }
-    });
-  }
-
-  traverse(vnodes);
-  return result;
-}
-
 type ChildrenMixinThis = {
   disableBindRelation?: boolean;
 };
 
-export function ChildrenMixin(parent: string, options: ChildrenMixinOptions = {}) {
+export function ChildrenMixin(
+  parent: string,
+  options: ChildrenMixinOptions = {}
+) {
   const indexKey = options.indexKey || 'index';
 
   return Vue.extend({
     inject: {
       [parent]: {
-        default: null
-      }
+        default: null,
+      },
     },
 
     computed: {
@@ -46,8 +33,13 @@ export function ChildrenMixin(parent: string, options: ChildrenMixinOptions = {}
 
       [indexKey]() {
         this.bindRelation();
-        return this.parent.children.indexOf(this);
-      }
+
+        if (this.parent) {
+          return this.parent.children.indexOf(this);
+        }
+
+        return null;
+      },
     },
 
     mounted() {
@@ -56,7 +48,9 @@ export function ChildrenMixin(parent: string, options: ChildrenMixinOptions = {}
 
     beforeDestroy() {
       if (this.parent) {
-        this.parent.children = this.parent.children.filter((item: any) => item !== this);
+        this.parent.children = this.parent.children.filter(
+          (item: any) => item !== this
+        );
       }
     },
 
@@ -67,12 +61,12 @@ export function ChildrenMixin(parent: string, options: ChildrenMixinOptions = {}
         }
 
         const children = [...this.parent.children, this];
-        const vnodes = flattenVNodes(this.parent.slots());
-        children.sort((a, b) => vnodes.indexOf(a.$vnode) - vnodes.indexOf(b.$vnode));
+
+        sortChildren(children, this.parent);
 
         this.parent.children = children;
-      }
-    }
+      },
+    },
   });
 }
 
@@ -80,14 +74,14 @@ export function ParentMixin(parent: string) {
   return {
     provide() {
       return {
-        [parent]: this
+        [parent]: this,
       };
     },
 
     data() {
       return {
-        children: []
+        children: [],
       };
-    }
+    },
   };
 }

@@ -2,11 +2,12 @@
 
 ### Install
 
-``` javascript
+```js
 import Vue from 'vue';
 import { Tab, Tabs } from 'vant';
 
-Vue.use(Tab).use(Tabs);
+Vue.use(Tab);
+Vue.use(Tabs);
 ```
 
 ## Usage
@@ -27,10 +28,10 @@ The first tab is actived by default, you can set `v-model` to active specified t
 export default {
   data() {
     return {
-      active: 2
+      active: 2,
     };
-  }
-}
+  },
+};
 ```
 
 ### Match By Name
@@ -47,10 +48,10 @@ export default {
 export default {
   data() {
     return {
-      activeName: 'a'
+      activeName: 'a',
     };
-  }
-}
+  },
+};
 ```
 
 ### Swipe Tabs
@@ -67,7 +68,7 @@ By default more than 4 tabs, you can scroll through the tabs. You can set `swipe
 
 ### Disabled Tab
 
-You can set `disabled` attribute on the corresponding `van-tab`. 
+You can set `disabled` attribute on the corresponding `van-tab`.
 
 ```html
 <van-tabs @disabled="onClickDisabled">
@@ -77,13 +78,15 @@ You can set `disabled` attribute on the corresponding `van-tab`.
 </van-tabs>
 ```
 
-```javascript
+```js
+import { Toast } from 'vant';
+
 export default {
   methods: {
     onClickDisabled(name, title) {
-      this.$toast(title + ' is disabled');
-    }
-  }
+      Toast(title + ' is disabled');
+    },
+  },
 };
 ```
 
@@ -109,13 +112,15 @@ Tabs styled as cards.
 </van-tabs>
 ```
 
-```javascript
+```js
+import { Toast } from 'vant';
+
 export default {
   methods: {
     onClick(name, title) {
-      this.$toast(title);
-    }
-  }
+      Toast(title);
+    },
+  },
 };
 ```
 
@@ -137,10 +142,8 @@ Use title slot to custom tab title
 
 ```html
 <van-tabs v-model="active">
-  <van-tab v-for="index in 2">
-    <div slot="title">
-      <van-icon name="more-o" />tab
-    </div>
+  <van-tab v-for="index in 2" :key="index">
+    <template #title> <van-icon name="more-o" />tab </template>
     content {{ index }}
   </van-tab>
 </van-tabs>
@@ -170,60 +173,85 @@ In swipeable mode, you can switch tabs with swipe gestrue in the content
 </van-tabs>
 ```
 
+### Scrollspy
+
+In scrollspy mode, the list of content will be tiled
+
+```html
+<van-tabs v-model="active" scrollspy sticky>
+  <van-tab v-for="index in 8" :title="'tab ' + index">
+    content {{ index }}
+  </van-tab>
+</van-tabs>
+```
+
 ## API
 
 ### Tabs Props
 
-| Attribute | Description | Type | Default | Version |
-|------|------|------|------|------|
-| v-model | Index of active tab | *string \| number* | `0` | - |
-| type | Can be set to `line` `card` | *string* | `line` | - |
-| duration | Toggle tab's animation time | *number* | `0.3` | - | - |
-| background | Background color | *string* | `white` | - |
-| line-width | Width of tab line | *string \| number* | Width of active tab | - |
-| line-height | Height of tab line | *string \| number* | `3px` | - |
-| color | Tab color | *string* | `#ee0a24` | - |
-| title-active-color | Title active color | *string* | - | - |
-| title-inactive-color | Title inactive color | *string* | - | - |
-| swipe-threshold | Set swipe tabs threshold | *number* | `4` | - | - |
-| offset-top | Offset top when use sticky mode | *number* | `0` | - |
-| animated | Whether to change tabs with animation | *boolean* | `false` | - |
-| border | Whether to show border when `type="line"` | *boolean* | `true` | - |
-| ellipsis | Whether to ellipsis too long title | *boolean* | `true` | - |
-| sticky | Whether to use sticky mode | *boolean* | `false` | - |
-| swipeable | Whether to switch tabs with swipe gestrue in the content | *boolean* | `false` | - |
-| lazy-render | Whether to enable tab content lazy render | *boolean* | `true` | - |
+| Attribute | Description | Type | Default |
+| --- | --- | --- | --- |
+| v-model | Index of active tab | _number \| string_ | `0` |
+| type | Can be set to `line` `card` | _string_ | `line` |
+| color | Tab color | _string_ | `#ee0a24` |
+| background | Background color | _string_ | `white` |
+| duration | Toggle tab's animation time | _number \| string_ | `0.3` | - |
+| line-width | Width of tab line | _number \| string_ | Width of active tab |
+| line-height | Height of tab line | _number \| string_ | `3px` |
+| animated | Whether to change tabs with animation | _boolean_ | `false` |
+| border | Whether to show border when `type="line"` | _boolean_ | `true` |
+| ellipsis | Whether to ellipsis too long title | _boolean_ | `true` |
+| sticky | Whether to use sticky mode | _boolean_ | `false` |
+| swipeable | Whether to switch tabs with swipe gestrue in the content | _boolean_ | `false` |
+| lazy-render | Whether to enable tab content lazy render | _boolean_ | `true` |
+| scrollspy `v2.3.0` | Whether to use scrollspy mode | _boolean_ | `false` |
+| offset-top | Offset top when use sticky mode | _number \| string_ | `0` |
+| swipe-threshold | Set swipe tabs threshold | _number \| string_ | `4` | - |
+| title-active-color | Title active color | _string_ | - |
+| title-inactive-color | Title inactive color | _string_ | - |
 
 ### Tab Props
 
-| Attribute | Description | Type | Default | Version |
-|------|------|------|------|------|
-| name | Identifier | *string \| number* | Index of tab | - |
-| title | Title | *string* | - | - |
-| disabled | Whether to disable tab | *boolean* | `false` | - |
-| url | Link | *string* | - | 2.2.1 |
-| to | Target route of the link, same as to of vue-router | *string \| object* | - | 2.2.1 |
-| replace | If true, the navigation will not leave a history record | *boolean* | `false` | 2.2.1 |
-
-### Tabs Slots
-
-| Name | Description |
-|------|------|
-| nav-left | Custom nav left content |
-| nav-right | Custom nav right content |
-
-### Tab Slots
-
-| Name | Description |
-|------|------|
-| default | Content of tab |
-| title | Custom tab title |
+| Attribute | Description | Type | Default |
+| --- | --- | --- | --- |
+| title | Title | _string_ | - |
+| disabled | Whether to disable tab | _boolean_ | `false` |
+| dot `v2.3.0` | Whether to show red dot on the title | _boolean_ | `false` |
+| badge `v2.5.6` | Content of the badge on the title | _number \| string_ | - |
+| name `v2.0.6` | Identifier | _number \| string_ | Index of tab |
+| url `v2.2.1` | Link | _string_ | - |
+| to `v2.2.1` | Target route of the link, same as to of vue-router | _string \| object_ | - |
+| replace `v2.2.1` | If true, the navigation will not leave a history record | _boolean_ | `false` |
+| title-style `v2.2.14` | Custom title style | _any_ | - |
 
 ### Tabs Events
 
 | Event | Description | Arguments |
-|------|------|------|
-| click | Triggered when click tab | name：name of current tab，title: tab title |
-| change | Triggered when active tab changed | name：name of current tab，title: tab title |
-| disabled | Triggered when click disabled tab | name：name of current tab, title: tab title |
+| --- | --- | --- |
+| click | Triggered when click tab | name，title |
+| change | Triggered when active tab changed | name，title |
+| disabled | Triggered when click disabled tab | name，title |
+| rendered `v2.3.0` | Triggered when content first rendered in lazy-render mode | name，title |
 | scroll | Triggered when tab scroll in sticky mode | object: { scrollTop, isFixed } |
+
+### Tabs Methods
+
+Use [ref](https://vuejs.org/v2/api/#ref) to get Tabs instance and call instance methods
+
+| Name | Description | Attribute | Return value |
+| --- | --- | --- | --- |
+| resize | Resize Tabs when container element resized | - | void |
+
+### Tabs Slots
+
+| Name      | Description              |
+| --------- | ------------------------ |
+| nav-left  | Custom nav left content  |
+| nav-right | Custom nav right content |
+
+### Tab Slots
+
+| Name    | Description      |
+| ------- | ---------------- |
+| default | Content of tab   |
+| title   | Custom tab title |

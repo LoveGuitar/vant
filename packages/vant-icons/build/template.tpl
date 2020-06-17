@@ -3,6 +3,7 @@
   font-weight: normal;
   font-family: '<%= fontName %>';
   font-style: normal;
+  font-display: auto;
   src: url('https://img.yzcdn.cn/vant/<%= cssClass %>.woff2') format('woff2'),
     url('https://img.yzcdn.cn/vant/<%= cssClass %>.woff') format('woff'),
     url('https://img.yzcdn.cn/vant/<%= cssClass %>.ttf') format('truetype');
@@ -21,7 +22,7 @@
   }
 }
 
-<% _.each(glyphs, function(glyph) { %>.van-icon-<%= glyph.fileName %>:before {
+<% _.each(glyphs, function(glyph) { %>.van-icon-<%= glyph.fileName %>::before {
   content: "\<%= glyph.codePoint %>";
 }
 
